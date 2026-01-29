@@ -28,8 +28,8 @@ class SubtitleLineSchema(BaseModel):
     id: int
     start_ms: int
     end_ms: int
-    text_en: str
-    text_zh: str
+    language: str
+    content: str
 
 
 class VideoDetail(BaseModel):

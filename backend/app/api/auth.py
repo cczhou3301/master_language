@@ -35,7 +35,9 @@ async def validate_activation_code(
 ) -> dict:
     """Step 1: Check if code is valid and unused. PRD 1.1."""
     r = await db.execute(
-        select(ActivationCode).where(ActivationCode.code == body.code.strip())
+        select(ActivationCode)
+        .where(ActivationCode.code == body.code.strip())
+        .where(ActivationCode.not_deleted())
     )
     row = r.scalar_one_or_none()
     if not row:
@@ -57,7 +59,9 @@ async def register_with_activation(
 ) -> LoginResponse:
     """Step 2: Create account, burn code. PRD 1.1."""
     r = await db.execute(
-        select(ActivationCode).where(ActivationCode.code == body.code.strip())
+        select(ActivationCode)
+        .where(ActivationCode.code == body.code.strip())
+        .where(ActivationCode.not_deleted())
     )
     ac = r.scalar_one_or_none()
     if not ac or ac.status == ActivationCodeStatus.USED.value:
@@ -69,21 +73,53 @@ async def register_with_activation(
             },
         )
 
-    r = await db.execute(select(User).where(User.phone == body.phone))
-    if r.scalar_one_or_none():
+    phone = body.phone.strip() if body.phone else None
+    email = body.email.strip() if body.email else None
+    if not phone and not email:
         raise HTTPException(
             status_code=400,
-            detail={"code": "PHONE_EXISTS", "message": "Phone already registered."},
+            detail={
+                "code": "PHONE_OR_EMAIL_REQUIRED",
+                "message": "At least one of phone or email is required.",
+            },
         )
+    if phone:
+        r = await db.execute(
+            select(User).where(User.phone == phone).where(User.not_deleted())
+        )
+        if r.scalar_one_or_none():
+            raise HTTPException(
+                status_code=400,
+                detail={"code": "PHONE_EXISTS", "message": "Phone already registered."},
+            )
+    if email:
+        r = await db.execute(
+            select(User).where(User.email == email).where(User.not_deleted())
+        )
+        if r.scalar_one_or_none():
+            raise HTTPException(
+                status_code=400,
+                detail={"code": "EMAIL_EXISTS", "message": "Email already registered."},
+            )
 
-    user = User(phone=body.phone, password_hash=get_password_hash(body.password))
+    user = User(
+        phone=phone,
+        email=email,
+        password_hash=get_password_hash(body.password),
+    )
     db.add(user)
     await db.flush()
     ac.status = ActivationCodeStatus.USED.value
     ac.used_by_user_id = user.id
     await db.refresh(user)
     token = create_access_token(str(user.id))
-    return LoginResponse(access_token=token, user_id=user.id, phone=user.phone)
+    return LoginResponse(
+        access_token=token,
+        user_id=user.id,
+        phone=user.phone,
+        email=user.email,
+        level=user.level,
+    )
 
 
 # ---- Login with 3-Device limit ----
@@ -93,15 +129,20 @@ async def login(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> LoginResponse:
-    """Login. Hard block when 4th device. PRD 1.2, 1.3."""
-    r = await db.execute(select(User).where(User.phone == body.phone))
+    """Login by phone or email. Hard block when 4th device. PRD 1.2, 1.3."""
+    login_val = body.login.strip()
+    r = await db.execute(
+        select(User)
+        .where(User.not_deleted())
+        .where((User.phone == login_val) | (User.email == login_val))
+    )
     user = r.scalar_one_or_none()
     if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(
             status_code=401,
             detail={
                 "code": "INVALID_CREDENTIALS",
-                "message": "Invalid phone or password.",
+                "message": "Invalid phone/email or password.",
             },
         )
     if not user.is_active:
@@ -111,7 +152,11 @@ async def login(
         )
 
     # Resolve current devices: same device_id gets refreshed
-    r = await db.execute(select(UserDevice).where(UserDevice.user_id == user.id))
+    r = await db.execute(
+        select(UserDevice)
+        .where(UserDevice.user_id == user.id)
+        .where(UserDevice.not_deleted())
+    )
     devices = list(r.scalars().all())
 
     # If this device_id exists, we're reconnecting: update and allow
@@ -120,7 +165,13 @@ async def login(
             d.device_name = body.device_name or d.device_name
             d.last_active_at = __utc_iso()
             token = create_access_token(str(user.id))
-            return LoginResponse(access_token=token, user_id=user.id, phone=user.phone)
+            return LoginResponse(
+                access_token=token,
+                user_id=user.id,
+                phone=user.phone,
+                email=user.email,
+                level=user.level,
+            )
 
     # New device: check 3-device limit
     if len(devices) >= _settings.MAX_DEVICES_PER_USER:
@@ -146,7 +197,13 @@ async def login(
     )
     db.add(dev)
     token = create_access_token(str(user.id))
-    return LoginResponse(access_token=token, user_id=user.id, phone=user.phone)
+    return LoginResponse(
+        access_token=token,
+        user_id=user.id,
+        phone=user.phone,
+        email=user.email,
+        level=user.level,
+    )
 
 
 def __utc_iso() -> str:

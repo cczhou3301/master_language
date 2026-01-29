@@ -1,10 +1,16 @@
 from __future__ import annotations
 
-from sqlalchemy import String, Boolean, Integer, ForeignKey, Text, Enum
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 import enum
+from typing import TYPE_CHECKING
 
-from .base import Base, TimestampMixin
+from sqlalchemy import String, Boolean, Integer, ForeignKey
+from sqlalchemy.dialects.mysql import BIGINT
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from .base import Base, SoftDeleteMixin, TimestampMixin, generate_bigint_id
+
+if TYPE_CHECKING:
+    from .content import UserVocabulary, UserSentence
 
 
 class ActivationCodeStatus(str, enum.Enum):
@@ -12,15 +18,30 @@ class ActivationCodeStatus(str, enum.Enum):
     USED = "used"
 
 
-class User(Base, TimestampMixin):
+class UserLevel:
+    """User level for benefits/rights. Higher = more privileges."""
+
+    FREE = 0
+    BASIC = 1
+    PREMIUM = 2
+    ADMIN = 9
+
+
+class User(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    phone: Mapped[str] = mapped_column(
-        String(11), unique=True, index=True, nullable=False
+    id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), primary_key=True, default=generate_bigint_id
+    )
+    phone: Mapped[str | None] = mapped_column(
+        String(32), unique=True, index=True, nullable=True
+    )  # can be >11 chars (e.g. international)
+    email: Mapped[str | None] = mapped_column(
+        String(255), unique=True, index=True, nullable=True
     )
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    level: Mapped[int] = mapped_column(Integer, default=UserLevel.FREE)
 
     devices: Mapped[list["UserDevice"]] = relationship(
         "UserDevice", back_populates="user", cascade="all, delete-orphan"
@@ -33,10 +54,12 @@ class User(Base, TimestampMixin):
     )
 
 
-class ActivationCode(Base, TimestampMixin):
+class ActivationCode(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "activation_codes"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), primary_key=True, default=generate_bigint_id
+    )
     code: Mapped[str] = mapped_column(
         String(32), unique=True, index=True, nullable=False
     )
@@ -44,15 +67,19 @@ class ActivationCode(Base, TimestampMixin):
         String(16), default=ActivationCodeStatus.UNUSED.value
     )
     used_by_user_id: Mapped[int | None] = mapped_column(
-        ForeignKey("users.id"), nullable=True
+        BIGINT(unsigned=True), ForeignKey("users.id"), nullable=True
     )
 
 
-class UserDevice(Base, TimestampMixin):
+class UserDevice(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "user_devices"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), primary_key=True, default=generate_bigint_id
+    )
+    user_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("users.id"), nullable=False
+    )
     device_id: Mapped[str] = mapped_column(
         String(128), nullable=False
     )  # client-generated stable id

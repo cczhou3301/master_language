@@ -24,7 +24,7 @@ async def feed(
     offset: int = Query(0, ge=0),
 ) -> list[VideoCard]:
     """Video feed with filters. PRD 4.1, 4.2. UID limit applied when auth middleware is on."""
-    q = select(Video).limit(limit).offset(offset)
+    q = select(Video).where(Video.not_deleted()).limit(limit).offset(offset)
     if difficulty is not None:
         q = q.where(Video.difficulty == difficulty)
     if accent:
@@ -57,13 +57,16 @@ async def get_video(
     db: AsyncSession = Depends(get_db),
 ) -> VideoDetail | None:
     """Video detail with subtitle lines for intensive reading. PRD 2.2."""
-    r = await db.execute(select(Video).where(Video.id == video_id))
+    r = await db.execute(
+        select(Video).where(Video.id == video_id).where(Video.not_deleted())
+    )
     v = r.scalar_one_or_none()
     if not v:
         return None
     r2 = await db.execute(
         select(SubtitleLine)
         .where(SubtitleLine.video_id == video_id)
+        .where(SubtitleLine.not_deleted())
         .order_by(SubtitleLine.start_ms)
     )
     lines = r2.scalars().all()
@@ -82,8 +85,8 @@ async def get_video(
                 id=s.id,
                 start_ms=s.start_ms,
                 end_ms=s.end_ms,
-                text_en=s.text_en,
-                text_zh=s.text_zh,
+                language=s.language,
+                content=s.content or "",
             )
             for s in lines
         ],

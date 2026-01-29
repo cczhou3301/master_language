@@ -1,0 +1,48 @@
+# MasterLanguage — dev and prod share this; override with APP_ENV and .env
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: master_language
+      MYSQL_USER: master_language
+      MYSQL_PASSWORD: master_language
+    ports: ["3306:3306"]
+    volumes: ["mysqldata:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD", "mysql", "-u", "root", "-proot", "-e", "SELECT 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build: ./backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      DATABASE_URL: mysql+aiomysql://master_language:master_language@db:3306/master_language?charset=utf8mb4
+      REDIS_URL: redis://redis:6379/0
+      CORS_ORIGINS: http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173
+    ports: ["8000:8000"]
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  frontend:
+    build: ./frontend
+    ports: ["5173:5173"]
+    environment: { VITE_API_BASE: http://localhost:8000 }
+    command: npm run dev
+    depends_on: [backend]
+
+volumes:
+  mysqldata: {}

@@ -24,13 +24,13 @@ async def _get_current_user_id() -> int:
 @router.get("/me")
 async def me(db: AsyncSession = Depends(get_db)) -> UserProfile:
     uid = await _get_current_user_id()
-    r = await db.execute(select(User).where(User.id == uid))
+    r = await db.execute(select(User).where(User.id == uid).where(User.not_deleted()))
     u = r.scalar_one_or_none()
     if not u:
         from fastapi import HTTPException
 
         raise HTTPException(401, "Not found")
-    return UserProfile(id=u.id, phone=u.phone)
+    return UserProfile(id=u.id, phone=u.phone, email=u.email, level=u.level)
 
 
 @router.get("/me/stats")

@@ -13,9 +13,9 @@ from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.api import auth, videos, users
-from app.core.rate_limit import get_redis
 
 _settings = get_settings()
+from app.core.rate_limit import get_redis
 
 
 @asynccontextmanager

@@ -3,7 +3,9 @@ from pydantic import BaseModel
 
 class UserProfile(BaseModel):
     id: int
-    phone: str
+    phone: str | None = None
+    email: str | None = None
+    level: int = 0
     # no password or sensitive fields
 
 
