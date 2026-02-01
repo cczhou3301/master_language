@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package idl;
+
+// Activation step 1: validate code
+message ActivationStep1 {
+  string code = 1;
+}
+
+// Activation step 2: register with code + phone/email + password
+message ActivationStep2 {
+  string code = 1;
+  optional string phone = 2;
+  optional string email = 3;
+  string password = 4;
+}
+
+// Login request: login (phone or email) + password + device
+message LoginRequest {
+  string login = 1;
+  string password = 2;
+  string device_id = 3;
+  string device_name = 4;
+}
+
+// Login response: token + user info
+message LoginResponse {
+  string access_token = 1;
+  string token_type = 2;
+  int64 user_id = 3;
+  optional string phone = 4;
+  optional string email = 5;
+  string level = 6;
+}
+
+message DeviceInfo {
+  string device_id = 1;
+  string device_name = 2;
+  optional string last_active = 3;
+}
+
+message DeviceLimitError {
+  string code = 1;
+  string message = 2;
+  repeated DeviceInfo active_devices = 3;
+}
+
+// Admin only: batch generate activation codes (1–100). Optional prefix for each code.
+message GenerateActivationCodesRequest {
+  int32 count = 1;   // 1–100
+  optional string prefix = 2;  // e.g. BATCH01, max 16 chars
+}
+
+// Response: list of generated codes. Show once; store securely.
+message GenerateActivationCodesResponse {
+  repeated string codes = 1;
+}

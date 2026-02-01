@@ -1,93 +1,45 @@
 """
 Video feed and detail. Rate limiting: video_uid, video_ip. PRD Module 4, 2.
+API calls service only; no direct DB or repository usage.
 """
 
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from __future__ import annotations
+
+from fastapi import Depends, Query
+
+from app.core.dal import get_db
+from app.core.router import video_router
+from app.dto import VideoCard, VideoDetail
+from app.service import video_service
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
-from app.core.rate_limit import rate_limit_video_uid, rate_limit_video_ip
-from app.models import Video, SubtitleLine
-from app.schemas.video import VideoCard, VideoFeedQuery, VideoDetail, SubtitleLineSchema
-
-router = APIRouter(prefix="/videos", tags=["videos"])
+router = video_router
 
 
-@router.get("", dependencies=[Depends(rate_limit_video_ip)])
+@video_router.get("")
 async def feed(
-    db: AsyncSession = Depends(get_db),
+    session: AsyncSession = Depends(get_db),
     difficulty: int | None = Query(None, ge=1, le=5),
     accent: str | None = None,
     topic: str | None = None,
     limit: int = Query(20, le=50),
     offset: int = Query(0, ge=0),
 ) -> list[VideoCard]:
-    """Video feed with filters. PRD 4.1, 4.2. UID limit applied when auth middleware is on."""
-    q = select(Video).where(Video.not_deleted()).limit(limit).offset(offset)
-    if difficulty is not None:
-        q = q.where(Video.difficulty == difficulty)
-    if accent:
-        q = q.where(Video.accent == accent)
-    if topic:
-        q = q.where(Video.topic == topic)
-    r = await db.execute(q)
-    rows = r.scalars().all()
-    # TODO: join completion status when we have progress table
-    return [
-        VideoCard(
-            id=v.id,
-            external_id=v.external_id,
-            title_en=v.title_en,
-            title_zh=v.title_zh or None,
-            thumbnail_url=v.thumbnail_url,
-            duration_seconds=v.duration_seconds,
-            difficulty=v.difficulty,
-            accent=v.accent,
-            topic=v.topic,
-            completed=False,
-        )
-        for v in rows
-    ]
+    """Video feed with filters. PRD 4.1, 4.2."""
+    return await video_service.get_feed(
+        session,
+        difficulty=difficulty,
+        accent=accent,
+        topic=topic,
+        limit=limit,
+        offset=offset,
+    )
 
 
-@router.get("/{video_id}", dependencies=[Depends(rate_limit_video_ip)])
+@video_router.get("/{video_id}")
 async def get_video(
     video_id: int,
-    db: AsyncSession = Depends(get_db),
+    session: AsyncSession = Depends(get_db),
 ) -> VideoDetail | None:
     """Video detail with subtitle lines for intensive reading. PRD 2.2."""
-    r = await db.execute(
-        select(Video).where(Video.id == video_id).where(Video.not_deleted())
-    )
-    v = r.scalar_one_or_none()
-    if not v:
-        return None
-    r2 = await db.execute(
-        select(SubtitleLine)
-        .where(SubtitleLine.video_id == video_id)
-        .where(SubtitleLine.not_deleted())
-        .order_by(SubtitleLine.start_ms)
-    )
-    lines = r2.scalars().all()
-    return VideoDetail(
-        id=v.id,
-        external_id=v.external_id,
-        title_en=v.title_en,
-        title_zh=v.title_zh or None,
-        thumbnail_url=v.thumbnail_url,
-        duration_seconds=v.duration_seconds,
-        difficulty=v.difficulty,
-        accent=v.accent,
-        topic=v.topic,
-        subtitle_lines=[
-            SubtitleLineSchema(
-                id=s.id,
-                start_ms=s.start_ms,
-                end_ms=s.end_ms,
-                language=s.language,
-                content=s.content or "",
-            )
-            for s in lines
-        ],
-    )
+    return await video_service.get_video_detail(session, video_id)

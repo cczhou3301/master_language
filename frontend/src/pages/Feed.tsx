@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { api } from "../config";
-import { getToken, authHeaders, clearAuth } from "../lib/auth";
+import { getToken, authHeaders, logout, ensureValidToken } from "../lib/auth";
 
 type Card = {
   id: number;
@@ -23,22 +23,41 @@ export function Feed() {
   const [list, setList] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+  const [logoutTick, setLogoutTick] = useState(0);
+
+  async function handleLogout() {
+    await logout(api);
+    setLogoutTick((t) => t + 1);
+  }
 
   useEffect(() => {
-    const h = getToken() ? authHeaders() : {};
-    fetch(api("/api/videos?limit=20"), { headers: h })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Fetch failed"))))
-      .then(setList)
-      .catch((e) => setErr(e.message || "Could not load feed."))
-      .finally(() => setLoading(false));
-  }, []);
+    let cancelled = false;
+    ensureValidToken(api).then((ok) => {
+      if (cancelled) return;
+      if (!ok) {
+        setLoading(false);
+        return;
+      }
+      const h = authHeaders();
+      fetch(api("/api/videos?limit=20"), { headers: h })
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Fetch failed"))))
+        .then(setList)
+        .catch((e) => setErr(e.message || "Could not load feed."))
+        .finally(() => setLoading(false));
+    });
+    return () => { cancelled = true; };
+  }, [logoutTick]);
+
+  if (!getToken()) {
+    return <Navigate to="/login" replace />;
+  }
 
   return (
     <div className="container">
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <h1 style={{ margin: 0 }}>MasterLanguage</h1>
         {getToken() ? (
-          <button onClick={clearAuth}>Log out</button>
+          <button onClick={handleLogout}>Log out</button>
         ) : (
           <span style={{ display: "flex", gap: 8 }}>
             <Link to="/login"><button>Log in</button></Link>

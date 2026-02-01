@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Registration Page - Master English!</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography,container-queries"></script>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#3B82F6",
+                        "background-light": "#F9FAFB",
+                        "background-dark": "#0F172A",
+                    },
+                    fontFamily: {
+                        display: ["Inter", "system-ui", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.75rem",
+                    },
+                },
+            },
+        };
+    </script>
+<style type="text/tailwindcss">
+        body {
+            font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        .gradient-button {
+            background: linear-gradient(90deg, #3B82F6 0%, #2563EB 100%);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark min-h-screen flex items-center justify-center p-4">
+<div class="w-full max-w-[480px] bg-white dark:bg-slate-900 shadow-xl rounded-3xl p-8 md:p-12 transition-colors duration-300">
+<div class="flex flex-col items-center mb-8 text-center">
+<div class="mb-4 bg-blue-50 dark:bg-blue-900/30 p-4 rounded-2xl">
+<span class="material-symbols-outlined text-5xl text-blue-600 dark:text-blue-400">school</span>
+</div>
+<h1 class="text-3xl font-bold text-slate-800 dark:text-white mb-2">Master English!</h1>
+<p class="text-slate-500 dark:text-slate-400">Join our community and master your English speaking skills.</p>
+</div>
+<form class="space-y-4">
+<div>
+<div class="flex justify-between items-end mb-1.5 px-1">
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-300">Activation Code</label>
+<span class="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+                        (How to get? Contact WeChat: <span class="text-blue-600 dark:text-blue-400 font-medium">masterLanguage</span>)
+                    </span>
+</div>
+<div class="relative">
+<input class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-slate-400" placeholder="Enter your activation code" required="" type="text"/>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg">key</span>
+</div>
+</div>
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 px-1">Email Address</label>
+<div class="relative">
+<input class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-slate-400" placeholder="example@email.com" required="" type="email"/>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg">mail</span>
+</div>
+</div>
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 px-1">Phone Number</label>
+<div class="relative">
+<input class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-slate-400" placeholder="Your phone number" required="" type="tel"/>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg">call</span>
+</div>
+</div>
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 px-1">Password</label>
+<div class="relative">
+<input class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-slate-400" placeholder="Create a password" required="" type="password"/>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg">lock</span>
+</div>
+</div>
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 px-1">Confirm Password</label>
+<div class="relative">
+<input class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-slate-400" placeholder="Confirm your password" required="" type="password"/>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg">lock_reset</span>
+</div>
+</div>
+<button class="w-full mt-6 gradient-button hover:opacity-95 active:scale-[0.98] text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-blue-500/25" type="submit">
+                Create My Account
+            </button>
+</form>
+<div class="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 text-center">
+<p class="text-sm text-slate-500 dark:text-slate-400">
+                Already have an account? <a class="text-blue-600 dark:text-blue-400 font-semibold hover:underline" href="#">Sign In</a>
+</p>
+</div>
+</div>
+
+</body></html>

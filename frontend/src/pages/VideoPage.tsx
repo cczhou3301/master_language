@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../config";
-import { authHeaders } from "../lib/auth";
+import { authHeaders, ensureValidToken } from "../lib/auth";
 
 type Sub = { id: number; start_ms: number; end_ms: number; text_en: string; text_zh: string };
 type Video = {
@@ -24,10 +24,19 @@ export function VideoPage() {
 
   useEffect(() => {
     if (!id) return;
-    fetch(api(`/api/videos/${id}`), { headers: authHeaders() })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Not found"))))
-      .then(setV)
-      .catch((e) => setErr(e.message || "Could not load video."));
+    let cancelled = false;
+    ensureValidToken(api).then((ok) => {
+      if (cancelled) return;
+      if (!ok) {
+        setErr("Session expired. Please log in again.");
+        return;
+      }
+      fetch(api(`/api/videos/${id}`), { headers: authHeaders() })
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Not found"))))
+        .then(setV)
+        .catch((e) => setErr(e.message || "Could not load video."));
+    });
+    return () => { cancelled = true; };
   }, [id]);
 
   if (err) return <div className="container"><p style={{ color: "var(--danger)" }}>{err}</p><Link to="/">Back</Link></div>;
@@ -35,7 +44,7 @@ export function VideoPage() {
 
   return (
     <div className="container">
-      <p><Link to="/">← Feed</Link></p>
+      <p><Link to="/">← Back</Link></p>
       <h1>{v.title_en}</h1>
       {v.title_zh && <p style={{ color: "var(--muted)" }}>{v.title_zh}</p>}
       <p style={{ fontSize: 14 }}>Lv.{v.difficulty} · {v.accent} · {v.topic} · {Math.floor(v.duration_seconds / 60)} min</p>

@@ -1,3 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Login/Register ref UI */
+.gradient-btn {
+  background: linear-gradient(90deg, #b2f5ea 0%, #fbb6ce 100%);
+}
+.gradient-button {
+  background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+}
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
 /* MasterLanguage — minimalist, high contrast. PRD 4.3 */
 :root {
   --bg: #fafafa;

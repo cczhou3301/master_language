@@ -51,16 +51,39 @@ class Settings(BaseSettings):
     REDIS_RATE_LIMIT_DB: int = 1
     REDIS_SESSION_DB: int = 2
 
+    # ---- Testing (skip auth when running tests) ----
+    TESTING: bool = Field(
+        default=False,
+        description="If True, skip JWT validation; use TESTING_USER_ID when token missing (pytest, etc.).",
+    )
+    TESTING_USER_ID: int = Field(
+        default=1, description="Default user_id when TESTING=True and no Bearer token."
+    )
+
+    # ---- Admin (avoids DAL in auth_deps; no cycle import) ----
+    ADMIN_USER_IDS: str = Field(
+        default="1",
+        description="Comma-separated user_ids that are admin (e.g. 1 or 1,2,3). Used by get_current_admin_user_id.",
+    )
+
     # ---- JWT / Auth ----
     JWT_SECRET_KEY: str = Field(
         default="dev-secret-change-in-production-min-32-chars",
         description="Must be long and random in production",
     )
     JWT_ALGORITHM: str = "HS256"
-    JWT_ACCESS_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days (session-like)
-    JWT_REFRESH_EXPIRE_DAYS: int = 30
+    JWT_ACCESS_EXPIRE_MINUTES: int = (
+        15  # Short-lived; frontend refreshes with refresh token
+    )
+    JWT_REFRESH_EXPIRE_DAYS: int = (
+        7  # Long-lived; stored in DB/Redis, used only for /refresh
+    )
 
     # ---- Rate limiting (business rules from PRD) ----
+    RATE_API_PER_SECOND: str = Field(
+        default="5/1",
+        description="Global API rate: N requests per second (e.g. 5/1 = 5 per 1 sec) per IP.",
+    )
     RATE_ACTIVATION_PER_IP: str = "5/600"  # 5 per 10 min -> block IP 1h
     RATE_LOGIN_FAILED_PER_IP: str = "5/60"  # 5 per 1 min -> temp lock 15 min
     RATE_LOGIN_FAILED_PER_UID: str = "5/60"  # 5 per 1 min -> lock account
@@ -96,6 +119,15 @@ class Settings(BaseSettings):
 
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
+
+    def admin_user_ids_list(self) -> list[int]:
+        """Parse ADMIN_USER_IDS to list of int (e.g. '1,2,3' -> [1, 2, 3])."""
+        result: list[int] = []
+        for part in (self.ADMIN_USER_IDS or "").split(","):
+            part = part.strip()
+            if part and part.isdigit():
+                result.append(int(part))
+        return result
 
 
 @lru_cache

@@ -12,10 +12,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import get_settings
-from app.api import auth, videos, users
+from app.api import auth, videos, users  # register route handlers on routers
+from app.core.router import auth_router, user_router, video_router
+from app.core.dal.redis import get_redis, close_redis
+from app.middleware.logging import LoggingMiddleware
+from app.middleware.auth import AuthMiddleware
+from app.middleware.rate_limit import RateLimitMiddleware
 
 _settings = get_settings()
-from app.core.rate_limit import get_redis
 
 
 @asynccontextmanager
@@ -28,10 +32,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         pass  # Log in production; allow app to start for /health to report failure
     yield
     # Shutdown: close Redis
-    from app.core.rate_limit import _redis
-
-    if _redis:
-        await _redis.aclose()
+    await close_redis()
 
 
 app = FastAPI(
@@ -42,6 +43,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(LoggingMiddleware)
+app.add_middleware(RateLimitMiddleware)  # per-path rate limit; runs after Auth so request.state.user_id is set for uid limits
+app.add_middleware(AuthMiddleware)  # JWT validation for protected paths; sets request.state.user_id (runs first = outermost)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_settings.cors_origins_list(),
@@ -64,7 +68,7 @@ async def readiness() -> dict:
     out: dict = {"status": "ok", "database": "ok", "redis": "ok"}
     try:
         from sqlalchemy import text
-        from app.core.database import engine
+        from app.core.dal import engine
 
         async with engine.connect() as c:
             await c.execute(text("SELECT 1"))
@@ -82,7 +86,7 @@ async def readiness() -> dict:
 
 # ---- 429 handler: user-friendly message ----
 @app.exception_handler(429)
-async def rate_limit_handler(request: Request, exc) -> JSONResponse:
+async def rate_limit_handler(request: Request, exc: Exception) -> JSONResponse:
     body = getattr(exc, "detail", {})
     if isinstance(body, dict) and "message" in body:
         return JSONResponse(status_code=429, content=body)
@@ -95,10 +99,10 @@ async def rate_limit_handler(request: Request, exc) -> JSONResponse:
     )
 
 
-# ---- Routes ----
-app.include_router(auth.router, prefix="/api")
-app.include_router(videos.router, prefix="/api")
-app.include_router(users.router, prefix="/api")
+# ---- Routes (APIRouter in app.core.router; handlers in app.api) ----
+app.include_router(auth_router, prefix="/api")
+app.include_router(user_router, prefix="/api")
+app.include_router(video_router, prefix="/api")
 
 
 @app.get("/")

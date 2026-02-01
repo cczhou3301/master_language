@@ -1,0 +1,27 @@
+# REST API: method + path -> request/response message names (from *.proto)
+# Backend implements these routes; frontend uses for typing.
+
+auth:
+  post /auth/activation/register:
+    request: ActivationStep2
+    response: LoginResponse
+  post /auth/login:
+    request: LoginRequest
+    response: LoginResponse
+  # Admin only: batch generate activation codes. Requires Bearer token and user.level == admin.
+  # Request: count (1–100), optional prefix. Response: codes (list of strings; show once, store securely).
+  post /auth/activation/generate:
+    request: GenerateActivationCodesRequest
+    response: GenerateActivationCodesResponse
+
+users:
+  get /users/me:
+    response: UserProfile
+  get /users/me/stats:
+    response: LearningStats
+
+videos:
+  get /videos:
+    response: repeated VideoCard
+  get /videos/{video_id}:
+    response: VideoDetail

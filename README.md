@@ -5,6 +5,103 @@ Backend (Python/FastAPI) and Frontend (React) are **separate**.
 **Config switch:** `APP_ENV=development` | `production`.  
 **HA & fault tolerance:** health checks, rate limiting, connection pooling, graceful shutdown.
 
+**部署开发环境：** 请直接查看下方的 **[Quick Start (develop environment)](#quick-start-develop-environment)**，按步骤即可在本地跑起后端与前端。
+
+---
+
+## Quick Start (develop environment)
+
+Follow these steps to run the app locally for development.
+
+### 1. Prerequisites
+
+| Requirement | Version / Notes |
+|-------------|-----------------|
+| Python | 3.11+ |
+| Node.js | 18+ (for frontend) |
+| MySQL | 8 (local or Docker) |
+| Redis | 6+ (local or Docker) |
+
+### 2. Clone and backend setup
+
+```bash
+git clone <repo-url>
+cd master_language/backend
+python -m venv .venv
+# Windows:
+.venv\Scripts\activate
+# macOS/Linux:
+# source .venv/bin/activate
+pip install -r requirements.txt
+pip install sqlacodegen pymysql   # for gen_models_from_db.py (optional)
+```
+
+### 3. Environment and database
+
+- Copy env and edit `DATABASE_URL` and `REDIS_URL` to point to your MySQL and Redis:
+
+```bash
+cp .env.example .env
+# Edit .env: DATABASE_URL=mysql+aiomysql://user:pass@localhost:3306/dbname?charset=utf8mb4
+#            REDIS_URL=redis://localhost:6379/0
+```
+
+- Create the MySQL database (if it does not exist):
+
+```sql
+CREATE DATABASE IF NOT EXISTS master_language CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+- Create tables (from current SQLAlchemy models):
+
+```bash
+# From backend dir (MySQL and Redis must be running)
+python scripts/init_db.py
+```
+
+- **Optional:** Sync models and DDL from an existing DB (generates `app/models/*.py` and `scripts/ddl/*.sql`):
+
+```bash
+python scripts/gen_models_from_db.py
+```
+
+### 4. Start backend
+
+```bash
+# From backend dir, with .venv activated
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+- API: http://localhost:8000  
+- API docs: http://localhost:8000/docs  
+- Health: http://localhost:8000/health/ready  
+
+### 5. Frontend setup and run
+
+```bash
+cd ../frontend
+npm install
+npm run dev
+```
+
+- App: http://localhost:5173  
+- Ensure `VITE_API_BASE` (or `.env.development`) points to `http://localhost:8000` for API calls.
+
+### 6. Optional: dev data
+
+- **Activation code** (for registration): insert an unused code, e.g.  
+  `INSERT INTO activation_code (id, code, status) VALUES (1, 'DEV001', 'unused');`  
+  (use your DB’s id type; see `app.models.activation_code`.)
+- **Admin user:** set `ADMIN_USER_IDS=1` in `.env` and ensure user id `1` exists (or add your user id).
+
+### 7. Run tests (backend)
+
+```bash
+cd backend
+# TESTING=1 is set by conftest.py for pytest
+pytest tests/ -v
+```
+
 ---
 
 ## Stack
@@ -46,6 +143,8 @@ Copy `backend/.env.example` to `backend/.env` and edit.
 
 ## Run
 
+For a full **step-by-step dev setup** (prerequisites, DB, Redis, backend, frontend), see [Quick Start (develop environment)](#quick-start-develop-environment) above.
+
 ### 1. With Docker Compose (recommended)
 
 ```bash
@@ -56,7 +155,7 @@ docker compose up -d
 docker compose run --rm backend python scripts/init_db.py
 
 # Optional: add a dev activation code for testing registration
-# docker compose exec db mysql -u master_language -pmaster_language master_language -e "INSERT INTO activation_codes (code, status) VALUES ('DEV001', 'unused');"
+# docker compose exec db mysql -u master_language -pmaster_language master_language -e "INSERT INTO activation_code (code, status) VALUES ('DEV001', 'unused');"
 ```
 
 - Backend: http://localhost:8000  
@@ -122,7 +221,9 @@ master_language/
 │   │   ├── schemas/
 │   │   └── main.py
 │   ├── scripts/
-│   │   └── init_db.py
+│   │   ├── ddl/              # DDL per table (from gen_models_from_db.py)
+│   │   ├── init_db.py
+│   │   └── gen_models_from_db.py
 │   ├── requirements.txt
 │   ├── Dockerfile
 │   └── .env.example

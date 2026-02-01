@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.core.database import engine
+from app.core.dal import engine
 from app.models import Base
 
 
